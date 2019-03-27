@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 import os
 from cifar10 import * 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 weight_decay = 0.0005
 momentum = 0.9
 
@@ -22,13 +23,14 @@ thus, total number of layers = (3*blocks)*residual_layer_num + 2
 
 depth = 64  # out channel
 
-batch_size = 128
-iteration = 391
-# 128 * 391 ~ 50,000
+batch_size = 30
+iteration = 238
+enoughSize = 7140
+# 30 * 272 ~ 8160
 
 test_iteration = 10
 
-total_epochs = 300
+total_epochs = 30
 
 
 def conv_layer(input, filter, kernel, stride, padding='SAME', layer_name="conv"):
@@ -76,7 +78,7 @@ def Evaluate(sess):
     test_acc = 0.0
     test_loss = 0.0
     test_pre_index = 0
-    add = 1000
+    add = 200
 
     for it in range(test_iteration):
         test_batch_x = test_x[test_pre_index: test_pre_index + add]
@@ -201,12 +203,9 @@ class ResNeXt():
         # x = tf.reshape(x, [-1,10])
         return x
 
-
-totalImage =  np.array()
-totalFlag = np.array()
-
-
 def readImage(dir):
+    totalImage =  []
+    totalFlag = []
     for i in range(8):
         dirName = "10"+str(i+1)
         if i == 7:
@@ -217,37 +216,41 @@ def readImage(dir):
             if img is None:
                 continue
             totalImage.append(img)
-            totalImage.append(i)
+            totalFlag.append([i])
+    totalImage =  np.array(totalImage)
+    totalFlag = np.array(totalFlag)
     return totalImage, totalFlag
 
+
+path = "./data/Category-"+"32"
+totalImage, totalFlag = readImage(path)
+length = 7160
+train_x, train_y = totalImage[:length], totalFlag[:length]
+test_x, test_y = totalImage[length:], totalFlag[:length:]
+image_size = 32
+img_channels = 3
+class_num = 1 #实际8
+x = tf.placeholder(tf.float32, shape=[
+                None, image_size, image_size, img_channels])
+label = tf.placeholder(tf.float32, shape=[None, class_num])
+
+training_flag = tf.placeholder(tf.bool)
+logits = ResNeXt(x, training=training_flag).model
+learning_rate = tf.placeholder(tf.float32, name='learning_rate')
+epoch_learning_rate = init_learning_rate
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+      logits=logits, labels=label))
+l2_loss = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
+optimizer = tf.train.MomentumOptimizer(
+    learning_rate=learning_rate, momentum=momentum, use_nesterov=True)
+train = optimizer.minimize(cost + l2_loss * weight_decay)
+
+correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(label, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+  
+saver = tf.train.Saver(tf.global_variables())
 def main():  
-
-  image_size = 32
-  img_channels = 3
-  class_num = 8
-  x = tf.placeholder(tf.float32, shape=[
-                    None, image_size, image_size, img_channels])
-  label = tf.placeholder(tf.float32, shape=[None, class_num])
-
-  training_flag = tf.placeholder(tf.bool)
-
-
-  learning_rate = tf.placeholder(tf.float32, name='learning_rate')
-
-  logits = ResNeXt(x, training=training_flag).model
-  cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
-      labels=label, logits=logits))
-
-  l2_loss = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
-  optimizer = tf.train.MomentumOptimizer(
-      learning_rate=learning_rate, momentum=momentum, use_nesterov=True)
-  train = optimizer.minimize(cost + l2_loss * weight_decay)
-
-  correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(label, 1))
-  accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-  saver = tf.train.Saver(tf.global_variables())
-
+  global epoch_learning_rate
   with tf.Session() as sess:
       ckpt = tf.train.get_checkpoint_state('./model')
       if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
@@ -257,7 +260,7 @@ def main():
 
       summary_writer = tf.summary.FileWriter('./logs', sess.graph)
 
-      epoch_learning_rate = init_learning_rate
+      
       for epoch in range(1, total_epochs + 1):
           if epoch == (total_epochs * 0.5) or epoch == (total_epochs * 0.75):
               epoch_learning_rate = epoch_learning_rate / 10
@@ -266,16 +269,15 @@ def main():
           train_acc = 0.0
           train_loss = 0.0
 
-          for step in range(1, iteration + 1):
-              if pre_index + batch_size < 50000:
+          for step in range(1, iteration):
+              if pre_index + batch_size < enoughSize:
                   batch_x = train_x[pre_index: pre_index + batch_size]
                   batch_y = train_y[pre_index: pre_index + batch_size]
               else:
                   batch_x = train_x[pre_index:]
                   batch_y = train_y[pre_index:]
-
+              print(pre_index, batch_size)
               batch_x = data_augmentation(batch_x)
-
               train_feed_dict = {
                   x: batch_x,
                   label: batch_y,
@@ -311,14 +313,6 @@ def main():
 
           saver.save(sess=sess, save_path='./model/ResNeXt.ckpt')
 if __name__ == '__main__':
-    path = "./data/Category-"+"32"
-    readImage(path)
-    length = len(totalImage)
-    length = int(length * 0.8)
-    #totalImage[:length]
-    #totalFlag[
-    train_x, train_y = totalImage[:length], totalFlag[:length]
-    test_x, test_y = totalImage[length:], totalFlag[:length:]
-    print(totalImage.shape)
+    print(totalFlag.shape)
     main()
     
