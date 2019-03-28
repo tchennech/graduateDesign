@@ -8,7 +8,7 @@ cardinality = 8  # how many split ?
 blocks = 3  # res_block ! (split + transition)
 depth = 64  # out channel
 
-class_num = 8
+class_num = 1
 
 def conv_layer(input, filter, kernel, stride, padding='SAME', layer_name="conv"):
     with tf.name_scope(layer_name):

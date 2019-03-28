@@ -27,7 +27,10 @@ train_x = None
 train_y = None
 test_x = None
 test_y = None
-
+x = None
+label = None
+learning_rate = None
+training_flag = None
 def Evaluate(sess):
     test_acc = 0.0
     test_loss = 0.0
@@ -61,7 +64,7 @@ def Evaluate(sess):
 
 
 def trainModel(savePath):  
-  global epoch_learning_rate, cost, accuracy, train_x, train_y, test_x, test_y
+  global epoch_learning_rate, cost, accuracy, train_x, train_y, test_x, test_y, x, label, learning_rate, training_flag
   #数据集路径
   path = "./data/Category-"+"32"
   totalImage, totalFlag = readImage(path)
