@@ -22,23 +22,29 @@ def readImage(dir):
     for i in range(8):
         dirName = "10"+str(i+1)
         if i == 7:
-            dirName = "102"
+            dirName = "120"
         realPath = dir + "/" + dirName
         for fileName in os.listdir(realPath):
             img = cv2.imread(realPath+"/"+fileName)
             if img is None:
                 continue
             totalImage.append(img)
-            totalFlag.append([i])
+            totalFlag.append([i+1])
     # 转成矩阵
     totalImage = np.array(totalImage)
     totalFlag = np.array(totalFlag)
+    #打乱
+    state = np.random.get_state()
+    np.random.shuffle(totalImage)
+    np.random.set_state(state)
+    np.random.shuffle(totalFlag)
     return totalImage, totalFlag
 
 
 # 实际用到的数据集
 def preperDatas(dir):
     totalImage = []
+    label = []
     realPath = './data/' + dir
     for fileName in os.listdir(realPath):
         img = cv2.imread(realPath+"/"+fileName)

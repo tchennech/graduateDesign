@@ -8,16 +8,16 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 weight_decay = 0.0005
 momentum = 0.9
 
-epoch_learning_rate = 0.0
+
 cost = 0.0
 accuracy = 0.0
 
-init_learning_rate = 0.1
-
-batch_size = 30
-iteration = 238
+init_learning_rate = 0.05
+epoch_learning_rate = init_learning_rate
+batch_size = 40
+iteration = 178
 enoughSize = 7140
-# 30 * 238 ~ 7140
+# 40 * 178 ~ 7140
 
 test_iteration = 10
 
@@ -79,11 +79,12 @@ def trainModel(savePath):
     img_channels = 3
     class_num = 1  # 实际8
     x = tf.placeholder(tf.float32, shape=[
-        None, image_size, image_size, img_channels])
-    label = tf.placeholder(tf.float32, shape=[None, class_num])
+        None, image_size, image_size, img_channels], name='input_x')
+    label = tf.placeholder(tf.float32, shape=[None, class_num], name='input_y')
 
-    training_flag = tf.placeholder(tf.bool)
+    training_flag = tf.placeholder(tf.bool, name='flag')
     logits = ResNeXt(x, training=training_flag).model
+    predict = tf.argmax(logits, 1, name="predict")
     learning_rate = tf.placeholder(tf.float32, name='learning_rate')
     epoch_learning_rate = init_learning_rate
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
@@ -97,11 +98,11 @@ def trainModel(savePath):
     train = optimizer.minimize(cost + l2_loss * weight_decay)
 
     # 准确率
-    correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(label, 1))
+    correct_prediction = tf.equal(predict, tf.argmax(label, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     saver = tf.train.Saver(tf.global_variables())
-    tf.add_to_collection("predict", logits)
+    tf.add_to_collection("predict_collection", logits)
     with tf.Session() as sess:
         ckpt = tf.train.get_checkpoint_state('./model')
         if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
@@ -169,11 +170,19 @@ def trainModel(savePath):
 def readModel(name):
     datasName = input("输入数据集名字")
     X = preperDatas(datasName)
+    print(X.shape)
     with tf.Session() as sess:
         saver = tf.train.import_meta_graph('./model/'+name)
         saver.restore(sess, tf.train.latest_checkpoint("./model/"))
-        result = tf.get_collection("predict")
-        pred = sess.run(result, feed_dict={x: X})
+        graph = tf.get_default_graph()
+        x = graph.get_tensor_by_name('input_x:0')
+        training_flag = graph.get_tensor_by_name('flag:0')
+        test_feed_dict = {
+            x: X,
+            training_flag: False
+        }
+        result = graph.get_tensor_by_name("predict:0")
+        pred = sess.run(result, feed_dict=test_feed_dict)
         print(pred)
 
 
