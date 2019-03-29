@@ -104,6 +104,7 @@ ENV/
 */assets/
 */data/
 */logs/
+*/model/
 *.tar
 *.gz
 *.tar.gz
