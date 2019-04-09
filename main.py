@@ -5,7 +5,7 @@ from preperData import *
 from ResNextNet import ResNeXt
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-weight_decay = 0.0005
+weight_decay = 0.001
 momentum = 0.9
 
 
@@ -13,15 +13,17 @@ cost = 0.0
 accuracy = 0.0
 
 init_learning_rate = 0.05
+
 epoch_learning_rate = init_learning_rate
 batch_size = 40
-iteration = 178
-enoughSize = 7140
-# 40 * 178 ~ 7140
+iteration = 250
+enoughSize = 10000
+length = 10002
+# 40 * 238 ~ 7140
 
 test_iteration = 10
 
-total_epochs = 5
+total_epochs = 20
 
 train_x = None
 train_y = None
@@ -37,7 +39,7 @@ def Evaluate(sess):
     test_acc = 0.0
     test_loss = 0.0
     test_pre_index = 0
-    add = 200
+    add = 177
 
     for it in range(test_iteration):
         test_batch_x = test_x[test_pre_index: test_pre_index + add]
@@ -69,9 +71,9 @@ def trainModel(savePath):
     # 数据集路径
     path = "./data/Category-"+"32"
     totalImage, totalFlag = readImage(path)
-
+    print(totalImage[0].shape)
     # 裁剪长度，为了方便，测试集为2000
-    length = 7160
+    
     train_x, train_y = totalImage[:length], totalFlag[:length]
     test_x, test_y = totalImage[length:], totalFlag[:length:]
     image_size = 32
@@ -110,7 +112,7 @@ def trainModel(savePath):
             sess.run(tf.global_variables_initializer())
 
         summary_writer = tf.summary.FileWriter('./logs', sess.graph)
-
+        os.makedirs('./model/'+savePath)
         for epoch in range(1, total_epochs + 1):
             if epoch == (total_epochs * 0.5) or epoch == (total_epochs * 0.75):
                 epoch_learning_rate = epoch_learning_rate / 10
@@ -162,8 +164,8 @@ def trainModel(savePath):
 
             with open('logs.txt', 'a') as f:
                 f.write(line)
-
-            saver.save(sess=sess, save_path='./model/'+savePath+'.ckpt')
+            
+            saver.save(sess=sess, save_path='./model/'+savePath+'/ResNext'+'.ckpt')
 
 
 def readModel(name):
@@ -171,8 +173,8 @@ def readModel(name):
     X = preperDatas(datasName)
     print(X.shape)
     with tf.Session() as sess:
-        saver = tf.train.import_meta_graph('./model/'+name)
-        saver.restore(sess, tf.train.latest_checkpoint("./model/"))
+        saver = tf.train.import_meta_graph('./model/'+name + '/ResNext')
+        saver.restore(sess, tf.train.latest_checkpoint("./model/"+name+'/'))
         graph = tf.get_default_graph()
         x = graph.get_tensor_by_name('input_x:0')
         training_flag = graph.get_tensor_by_name('flag:0')

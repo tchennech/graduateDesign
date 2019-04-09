@@ -10,33 +10,48 @@ import numpy as np
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # 读取数据集 总共8类 32, 64, 128 , 256尺寸
 # os opencv 训练数据集
-
+image_size = 32
 
 def readImage(dir):
     totalImage = []
     totalFlag = []
-    
+    totalImageTemp = []
+    totalFlagTemp = []
+    testImgTemp = []
+    testFlagTemp = []
     for i in range(8):
         dirName = "10"+str(i+1)
         if i == 7:
             dirName = "120"
         realPath = dir + "/" + dirName
+        totalImageTemp = []
+        totalFlagTemp = []
         for fileName in os.listdir(realPath):
             img = cv2.imread(realPath+"/"+fileName)
             if img is None:
                 continue
-            totalImage.append(img)
+            totalImageTemp.append(img)
             initData = [0., 0., 0., 0., 0., 0., 0., 0.]
             initData[i] = 1
-            totalFlag.append(initData)
+            totalFlagTemp.append(initData)
+        #打乱
+        cc = list(zip(totalImageTemp, totalFlagTemp))
+        random.shuffle(cc)
+        totalImageTemp[:], totalFlagTemp[:] = zip(*cc)
+        length = int(len(totalImageTemp) * 0.85)
+        totalImage.extend(totalImageTemp[:length])
+        totalFlag.extend(totalFlagTemp[:length])
+        testImgTemp.extend(totalImageTemp[length:])
+        testFlagTemp.extend(totalFlagTemp[length:])
+    cc = list(zip(totalImage, totalFlag))
+    random.shuffle(cc)
+    totalImage[:], totalFlag[:] = zip(*cc)
+    totalImage.extend(testImgTemp)
+    totalFlag.extend(testFlagTemp)
     # 转成矩阵
     totalImage = np.array(totalImage)
     totalFlag = np.array(totalFlag)
-    #打乱
-    state = np.random.get_state()
-    np.random.shuffle(totalImage)
-    np.random.set_state(state)
-    np.random.shuffle(totalFlag)
+    
     return totalImage, totalFlag
 
 
@@ -93,5 +108,5 @@ def _random_flip_leftright(batch):
 def data_augmentation(batch):
     batch = _random_flip_leftright(batch)
     #修剪为[32, 32]
-    batch = _random_crop(batch, [32, 32], 4)
+    batch = _random_crop(batch, [image_size, image_size], 4)
     return batch
